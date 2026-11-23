@@ -100,7 +100,7 @@ Copie `.env.example` para `.env` e preencha:
 
 1. No Developer Portal, crie a aplicação e o bot, e copie o token para `DISCORD_TOKEN`.
 2. Convide o bot com os escopos `bot` e `applications.commands`, senão o `/numero` não aparece.
-3. Preencha `DISCORD_GUILD_ID`.
+3. Preencha `DISCORD_GUILD_ID`. O bot só atende nesse servidor: em qualquer outro responde "não autorizado", e na subida ele apaga o `/numero` antigo dos outros servidores e do escopo global. Para tirar o bot de vez de um servidor, expulse-o de lá. Para impedir convites novos, desmarque **Public Bot** no Developer Portal.
 
 ### Usuário somente leitura no Magnus
 

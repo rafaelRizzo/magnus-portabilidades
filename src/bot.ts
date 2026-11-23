@@ -48,6 +48,16 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
         return { content: "", embeds: [embed] }
     }
 
+    // Comando antigo continua valendo onde foi registrado: remove o /numero de qualquer outro servidor e do escopo global
+    const removeStale = async <T extends { name: string }>(
+        list: () => Promise<Map<string, T>>,
+        remove: (command: T) => Promise<unknown>,
+    ) => {
+        for (const command of (await list()).values()) {
+            if (command.name === "numero") await remove(command)
+        }
+    }
+
     client.once(Events.ClientReady, async (ready) => {
         await ready.application.commands.set(
             [
@@ -66,6 +76,26 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
             ],
             config.guildId,
         )
+
+        const cleanups = [
+            removeStale(
+                () => ready.application.commands.fetch(),
+                (command) => ready.application.commands.delete(command),
+            ),
+            ...[...ready.guilds.cache.values()]
+                .filter((guild) => guild.id !== config.guildId)
+                .map((guild) =>
+                    removeStale(
+                        () => guild.commands.fetch(),
+                        (command) => guild.commands.delete(command),
+                    ),
+                ),
+        ]
+        for (const cleanup of cleanups) {
+            await cleanup.catch((error) =>
+                console.error("Falha ao limpar /numero antigo:", error),
+            )
+        }
     })
 
     client.on(Events.InteractionCreate, async (interaction) => {
@@ -74,6 +104,14 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
             interaction.commandName !== "numero"
         )
             return
+        // O Discord entrega a interação de qualquer servidor onde o comando exista: só o do .env é atendido
+        if (interaction.guildId !== config.guildId) {
+            await interaction.reply({
+                content: "Este bot não está autorizado neste servidor.",
+                flags: MessageFlags.Ephemeral,
+            })
+            return
+        }
         if (!interaction.inCachedGuild()) return
 
         const denied =
