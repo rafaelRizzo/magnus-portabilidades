@@ -172,15 +172,15 @@ O serviço roda como o usuário `portab`, sem root: a captura raw vem das capabi
 
 ### Atualizar
 
+Atalho, na VPS: `deploy/update.sh` faz o `git pull`, copia o `.service` e reinicia. Manual:
+
 ```bash
-# no Mac
-rsync -av --exclude node_modules --exclude .git ./ root@SERVIDOR:/opt/magnus-portabilidades/
-# na VPS (o bun install só é necessário se o package.json mudou)
-cd /opt/magnus-portabilidades && bun install --production
+cd /opt/magnus-portabilidades && git pull --ff-only
+bun install --production   # só se o package.json mudou
 systemctl restart magnus-portabilidades
 ```
 
-O `rsync` não sobrescreve o `.env` do servidor, porque ele não existe na pasta do projeto. Se criar um `.env` local, adicione `--exclude .env`.
+Se o `.service` mudou, copie para `/etc/systemd/system/` e rode `systemctl daemon-reload` antes do restart.
 
 ### Operar o serviço
 
