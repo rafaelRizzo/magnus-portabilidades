@@ -1,0 +1,24 @@
+{
+    "name": "magnus-portabilidades",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "scripts": {
+        "dev": "bun --watch src/index.ts",
+        "start": "bun src/index.ts",
+        "test": "bun test",
+        "typecheck": "tsc --noEmit",
+        "lint": "biome check src",
+        "format": "biome format --write src"
+    },
+    "dependencies": {
+        "discord.js": "^14.28.1",
+        "fastify": "^5.12.8",
+        "zod": "^4.6.7"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^2.6.8",
+        "@types/bun": "^1.4.5",
+        "typescript": "^7.0.2"
+    }
+}

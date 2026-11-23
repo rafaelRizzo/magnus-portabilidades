@@ -1,0 +1,19 @@
+# Pré-requisito: bun em /usr/local/bin:
+#   install -m755 /root/.bun/bin/bun /usr/local/bin/bun
+# Primeira subida: acompanhe com `journalctl -u magnus-portabilidades -f`.
+[Unit]
+Description=Magnus portabilidades (coletor de INVITE + bot Discord)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/magnus-portabilidades
+EnvironmentFile=/opt/magnus-portabilidades/.env
+ExecStart=/usr/local/bin/bun src/index.ts
+Restart=always
+RestartSec=5
+# root: o tcpdump precisa de captura raw e o `asterisk -rx` precisa do socket do Asterisk
+User=root
+
+[Install]
+WantedBy=multi-user.target
