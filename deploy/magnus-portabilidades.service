@@ -1,5 +1,7 @@
-# Pré-requisito: bun em /usr/local/bin:
+# Pré-requisitos:
 #   install -m755 /root/.bun/bin/bun /usr/local/bin/bun
+#   useradd --system --no-create-home --shell /usr/sbin/nologin portab
+#   chown root:root /opt/magnus-portabilidades/.env && chmod 600 /opt/magnus-portabilidades/.env
 # Primeira subida: acompanhe com `journalctl -u magnus-portabilidades -f`.
 [Unit]
 Description=Magnus portabilidades (coletor de INVITE + bot Discord)
@@ -12,8 +14,24 @@ EnvironmentFile=/opt/magnus-portabilidades/.env
 ExecStart=/usr/local/bin/bun src/index.ts
 Restart=always
 RestartSec=5
-# root: o tcpdump precisa de captura raw e o `asterisk -rx` precisa do socket do Asterisk
-User=root
+# Sem root: usuário dedicado, captura raw via capability e socket do Asterisk via grupo
+User=portab
+Group=portab
+SupplementaryGroups=asterisk
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_PACKET AF_NETLINK
 
 [Install]
 WantedBy=multi-user.target

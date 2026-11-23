@@ -153,6 +153,8 @@ install -m755 /root/.bun/bin/bun /usr/local/bin/bun
 cd /opt/magnus-portabilidades
 bun install --production
 cp .env.example .env && nano .env
+chown root:root .env && chmod 600 .env
+useradd --system --no-create-home --shell /usr/sbin/nologin portab
 ```
 
 4. Teste em primeiro plano (veja "Rodar manualmente") e pare com Ctrl+C.
@@ -166,7 +168,7 @@ systemctl enable --now magnus-portabilidades
 journalctl -u magnus-portabilidades -f
 ```
 
-O serviço roda como root porque o `tcpdump` precisa de captura raw e o `asterisk -rx` precisa do socket do Asterisk. Na subida ele lê `sip show peers`: se esse comando falhar, o serviço encerra e o systemd tenta de novo.
+O serviço roda como o usuário `portab`, sem root: a captura raw vem das capabilities `CAP_NET_RAW` e `CAP_NET_ADMIN`, e o `asterisk -rx` usa o socket do Asterisk pelo grupo `asterisk` (confira com `ls -l /var/run/asterisk/asterisk.ctl` que o grupo tem acesso). O `.env` fica `root:root 600`, pois o systemd o lê como root. Na subida ele lê `sip show peers`: se esse comando falhar, o serviço encerra e o systemd tenta de novo.
 
 ### Atualizar
 
