@@ -10,7 +10,11 @@ export type InviteEvent = {
 
 export type InviteBuffer = ReturnType<typeof createInviteBuffer>
 
-export const createInviteBuffer = (windowMs = 30 * 60_000) => {
+// maxEvents limita a memória contra flood de números distintos: ao estourar, descarta o mais antigo.
+export const createInviteBuffer = (
+    windowMs = 30 * 60_000,
+    maxEvents = 50_000,
+) => {
     // Map mantém ordem de inserção: reinserir a chave a cada INVITE deixa o mais antigo na frente
     const events = new Map<string, InviteEvent>()
     const waiters = new Map<string, Set<(event: InviteEvent | null) => void>>()
@@ -27,6 +31,9 @@ export const createInviteBuffer = (windowMs = 30 * 60_000) => {
             prune(event.at)
             events.delete(event.key)
             events.set(event.key, event)
+            if (events.size > maxEvents) {
+                events.delete(events.keys().next().value as string)
+            }
             for (const resolve of [...(waiters.get(event.key) ?? [])])
                 resolve(event)
         },

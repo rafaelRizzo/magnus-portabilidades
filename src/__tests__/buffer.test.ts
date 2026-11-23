@@ -40,3 +40,15 @@ describe("createInviteBuffer", () => {
         expect(await pending).toBeNull()
     })
 })
+
+describe("teto do buffer", () => {
+    test("descarta o mais antigo ao passar de maxEvents", () => {
+        const buffer = createInviteBuffer(60_000, 2)
+        buffer.add(event("1111111111", 1))
+        buffer.add(event("2222222222", 2))
+        buffer.add(event("3333333333", 3))
+        expect(buffer.find("1111111111", 3)).toBeNull()
+        expect(buffer.find("2222222222", 3)).not.toBeNull()
+        expect(buffer.find("3333333333", 3)).not.toBeNull()
+    })
+})

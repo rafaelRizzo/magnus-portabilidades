@@ -75,3 +75,21 @@ describe("inviteColor", () => {
         expect(inviteColor(undefined)).toBe(0x00bc7d)
     })
 })
+
+describe("describeInvite com campos hostis", () => {
+    test("escapa markdown e links vindos do SIP e neutraliza crase no Call-ID", () => {
+        const text = describeInvite(
+            {
+                ...event,
+                from: "[x](http://evil.test)**@everyone",
+                callId: "a`b",
+            },
+            undefined,
+            undefined,
+        )
+        expect(text).not.toContain("[x]")
+        expect(text).toContain("\\[x\\]\\(http\\://evil.test\\)")
+        expect(text).toContain("\\@everyone")
+        expect(text).toContain("`ab`")
+    })
+})

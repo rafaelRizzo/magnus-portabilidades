@@ -14,6 +14,10 @@ export const inviteColor = (did: DidInfo | null | undefined) => {
     return COLORS.green
 }
 
+// Campos vindos do pacote SIP são não confiáveis: escapa markdown e limita o tamanho
+const escapeMarkdown = (text: string) =>
+    text.slice(0, 64).replace(/[\\*_~`|>[\]()<@:#]/g, "\\$&")
+
 // did: undefined = Magnus indisponível, null = DID não cadastrado, objeto = cadastrado
 export const describeInvite = (
     event: InviteEvent,
@@ -22,7 +26,7 @@ export const describeInvite = (
 ) => {
     const ts = Math.floor(event.at / 1000)
     const lines = [
-        `**Ligação:** ${event.from} → ${event.called}`,
+        `**Ligação:** ${escapeMarkdown(event.from)} → ${escapeMarkdown(event.called)}`,
         `**Tronco:** ${trunks?.join(", ") ?? "desconhecido"} (${event.srcIp})`,
     ]
 
@@ -37,6 +41,8 @@ export const describeInvite = (
     }
 
     lines.push(`**Hora:** <t:${ts}:T> (<t:${ts}:R>)`)
-    lines.push(`**Call-ID:** \`${event.callId}\``)
+    lines.push(
+        `**Call-ID:** \`${event.callId.slice(0, 128).replaceAll("`", "")}\``,
+    )
     return lines.join("\n")
 }

@@ -1,6 +1,7 @@
 // Bot Discord: slash command /numero consulta a janela de INVITEs e espera uma ligação nova se preciso.
 import {
     ApplicationCommandOptionType,
+    type ChatInputCommandInteraction,
     Client,
     EmbedBuilder,
     Events,
@@ -24,7 +25,10 @@ type BotConfig = {
 }
 
 export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
-    const client = new Client({ intents: [GatewayIntentBits.Guilds] })
+    const client = new Client({
+        intents: [GatewayIntentBits.Guilds],
+        allowedMentions: { parse: [] },
+    })
 
     // Falha no Magnus não derruba a resposta: o bot ainda diz que o número chegou
     const render = async (event: InviteEvent) => {
@@ -40,7 +44,7 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
         }
         const embed = new EmbedBuilder()
             .setColor(inviteColor(did))
-            .setTitle(`Número ${event.called} está conosco`)
+            .setTitle(`Número ${event.key} está conosco`)
             .setDescription(
                 describeInvite(event, config.carrierNames(event.srcIp), did) +
                     note,
@@ -58,7 +62,7 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
         }
     }
 
-    client.once(Events.ClientReady, async (ready) => {
+    const onReady = async (ready: Client<true>) => {
         await ready.application.commands.set(
             [
                 {
@@ -96,14 +100,14 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
                 console.error("Falha ao limpar /numero antigo:", error),
             )
         }
+    }
+    client.once(Events.ClientReady, (ready) => {
+        onReady(ready).catch((error) =>
+            console.error("Falha ao registrar /numero:", error),
+        )
     })
 
-    client.on(Events.InteractionCreate, async (interaction) => {
-        if (
-            !interaction.isChatInputCommand() ||
-            interaction.commandName !== "numero"
-        )
-            return
+    const handleNumero = async (interaction: ChatInputCommandInteraction) => {
         // O Discord entrega a interação de qualquer servidor onde o comando exista: só o do .env é atendido
         if (interaction.guildId !== config.guildId) {
             await interaction.reply({
@@ -152,7 +156,33 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
                 ? await render(arrived)
                 : `Nenhum INVITE para **${key}** chegou em 2 min.`,
         )
+    }
+
+    // Erro na interação não pode virar unhandled rejection: derrubaria o processo e perderia a janela de INVITEs
+    client.on(Events.InteractionCreate, async (interaction) => {
+        if (
+            !interaction.isChatInputCommand() ||
+            interaction.commandName !== "numero"
+        )
+            return
+        try {
+            await handleNumero(interaction)
+        } catch (error) {
+            console.error("Falha ao atender /numero:", error)
+            const content = "Erro interno ao consultar, tente de novo."
+            await (interaction.deferred || interaction.replied
+                ? interaction.editReply(content)
+                : interaction.reply({
+                      content,
+                      flags: MessageFlags.Ephemeral,
+                  })
+            ).catch(() => {})
+        }
     })
+
+    client.on(Events.Error, (error) =>
+        console.error("Erro no cliente Discord:", error),
+    )
 
     await client.login(config.token)
 }

@@ -8,6 +8,11 @@ import { createMagnus } from "./magnus"
 import { buildServer } from "./server"
 import { startCapture } from "./tcpdump"
 
+// Rejeição solta não derruba o processo: reiniciar perderia a janela de 30 min de INVITEs
+process.on("unhandledRejection", (reason) =>
+    console.error("unhandledRejection:", reason),
+)
+
 const buffer = createInviteBuffer()
 
 // A primeira leitura precisa funcionar: sem a lista de operadoras todo INVITE seria descartado em silêncio
