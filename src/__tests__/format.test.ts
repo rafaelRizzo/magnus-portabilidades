@@ -29,8 +29,8 @@ describe("describeInvite", () => {
         })
         expect(text).toContain("11999990001 → 1133334444")
         expect(text).toContain("TRUNK-A, TRUNK-B (192.0.2.50)")
-        expect(text).toContain("- **Cliente**\n> fulano \\(Fulano Silva\\)")
-        expect(text).toContain("- **Destino**\n> SIP/ramal100")
+        expect(text).toContain("**Cliente:** fulano \\(Fulano Silva\\)")
+        expect(text).toContain("**Destino:** SIP/ramal100")
     })
 
     test("avisa DID sem destino e desativado", () => {
@@ -61,7 +61,7 @@ describe("describeInvite", () => {
             userStatus: "Ativo",
         })
         expect(text).toContain(
-            "- **Cliente**\n> 10001\n- **Dist**\n> DIST\\_01\n- **Status**\n> Ativo\n- **Destino**",
+            "**Cliente:** 10001\n**Dist:** DIST\\_01\n**Status:** Ativo\n**Destino:**",
         )
         const bare = describeInvite(event, [], { ...did, dist: null })
         expect(bare).not.toContain("Dist")
@@ -141,7 +141,7 @@ describe("campos do Magnus hostis", () => {
             destinations: ["Contexto: <@123>"],
             sipAccounts: [],
         })
-        expect(text.split("\n")).toHaveLength(8)
+        expect(text.split("\n")).toHaveLength(4)
         expect(text).not.toContain("**a**")
         expect(text).toContain("\\<\\@123\\>")
         expect(text).toContain("\\[l\\]")
