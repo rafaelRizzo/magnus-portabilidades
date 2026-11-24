@@ -3,11 +3,18 @@
 import { SQL } from "bun"
 import { numberKey } from "./number"
 
+export type SipAccount = {
+    username: string
+    secret: string
+    callerid: string
+}
+
 export type DidInfo = {
     did: string
     activated: boolean
     owner: string | null
     destinations: string[]
+    sipAccounts: SipAccount[]
 }
 
 // null = DID não cadastrado no Magnus. Erro de banco propaga e quem chama trata.
@@ -21,6 +28,9 @@ type DestinationRow = {
     id_ivr: number | null
     id_queue: number | null
     sip_name?: string | null
+    defaultuser?: string | null
+    secret?: string | null
+    callerid?: string | null
 }
 
 const DIAL_TARGET = /\b(?:SIP|PJSIP|IAX2?|DAHDI|Local)\/[^/&,)\s$]+/g
@@ -78,6 +88,15 @@ export const describeOwner = (row: OwnerRow) => {
     return name ? `${row.username} (${name})` : row.username
 }
 
+const isSipAccount = (row: DestinationRow) =>
+    Number(row.voip_call) === 1 && !!row.defaultuser
+
+export const toSipAccount = (row: DestinationRow): SipAccount => ({
+    username: row.defaultuser ?? "",
+    secret: row.secret ?? "",
+    callerid: row.callerid?.trim() ?? "",
+})
+
 export const createMagnus = (url: string): MagnusLookup => {
     const sql = new SQL(url)
 
@@ -93,7 +112,7 @@ export const createMagnus = (url: string): MagnusLookup => {
         if (!row) return null
 
         const destinations: DestinationRow[] = await sql`
-            SELECT dd.voip_call, dd.destination, dd.context, dd.id_sip, dd.id_ivr, dd.id_queue, s.name AS sip_name
+            SELECT dd.voip_call, dd.destination, dd.context, dd.id_sip, dd.id_ivr, dd.id_queue, s.name AS sip_name, s.defaultuser, s.secret, s.callerid
             FROM pkg_did_destination dd
             LEFT JOIN pkg_sip s ON s.id = dd.id_sip
             WHERE dd.id_did = ${row.id} AND dd.activated = 1
@@ -104,6 +123,7 @@ export const createMagnus = (url: string): MagnusLookup => {
             activated: Number(row.activated) === 1,
             owner: describeOwner(row),
             destinations: destinations.map(describeDestination).filter(Boolean),
+            sipAccounts: destinations.filter(isSipAccount).map(toSipAccount),
         }
     }
 }

@@ -1,6 +1,6 @@
 // Testes da leitura do destino com linhas reais de pkg_did_destination (dados fictícios).
 import { describe, expect, test } from "bun:test"
-import { describeDestination, describeOwner } from "../magnus"
+import { describeDestination, describeOwner, toSipAccount } from "../magnus"
 
 describe("describeOwner", () => {
     const base = { username: "10001", company_name: null }
@@ -129,5 +129,27 @@ describe("describeDestination", () => {
         expect(
             describeDestination(row({ voip_call: 99, destination: "x" })),
         ).toBe("tipo 99 x")
+    })
+})
+
+describe("toSipAccount", () => {
+    test("callerid nulo ou em branco vira vazio", () => {
+        const base = {
+            voip_call: 1,
+            destination: null,
+            context: null,
+            id_sip: 1,
+            id_ivr: 0,
+            id_queue: 0,
+            defaultuser: "u",
+            secret: "s",
+        }
+        expect(toSipAccount({ ...base, callerid: null }).callerid).toBe("")
+        expect(toSipAccount({ ...base, callerid: "  " }).callerid).toBe("")
+        expect(toSipAccount({ ...base, callerid: "1133334444" })).toEqual({
+            username: "u",
+            secret: "s",
+            callerid: "1133334444",
+        })
     })
 })

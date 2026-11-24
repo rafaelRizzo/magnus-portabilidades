@@ -44,6 +44,10 @@ _Avoid_: linha, número cadastrado
 Para onde o Magnus encaminha as ligações de um DID cadastrado.
 _Avoid_: rota, extensão
 
+**Login SIP**:
+Usuário e senha da Conta SIP que é destino de um DID. Sem callerid na conta, a resposta fica laranja.
+_Avoid_: credencial, ramal
+
 **Tronco**:
 Conexão cadastrada no Magnus por onde uma operadora entrega ligações, identificada pelo nome e pelo IP de origem.
 _Avoid_: trunk, linha

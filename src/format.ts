@@ -5,10 +5,15 @@ import type { DidInfo } from "./magnus"
 // Cores do embed em RGB (o Discord não aceita oklch): oklch(63.7% 0.237 25.331), (70.5% 0.213 47.604), (69.6% 0.17 162.48)
 const COLORS = { red: 0xfb2c36, orange: 0xff6900, green: 0x00bc7d }
 
-// Vermelho: DID desativado. Laranja: sem destino ou DID fora do Magnus. Verde: tudo certo ou Magnus indisponível.
+// Vermelho: DID desativado. Laranja: sem destino, conta SIP sem callerid ou DID fora do Magnus. Verde: tudo certo ou Magnus indisponível.
 export const inviteColor = (did: DidInfo | null | undefined) => {
     if (did && !did.activated) return COLORS.red
-    if (did === null || (did && did.destinations.length === 0)) {
+    if (
+        did === null ||
+        (did &&
+            (did.destinations.length === 0 ||
+                did.sipAccounts.some((a) => !a.callerid)))
+    ) {
         return COLORS.orange
     }
     return COLORS.green
@@ -37,6 +42,12 @@ export const describeInvite = (
         lines.push(
             `**Destino:** ${did.destinations.length ? did.destinations.join(", ") : "sem destino configurado"}`,
         )
+        for (const a of did.sipAccounts) {
+            const clean = (v: string) => v.slice(0, 64).replaceAll("`", "")
+            lines.push(
+                `**Login SIP:** \`${clean(a.username)}\` / \`${clean(a.secret)}\`${a.callerid ? "" : " (sem callerid)"}`,
+            )
+        }
         if (!did.activated) lines.push("**Atenção:** DID desativado no Magnus")
     }
 

@@ -19,6 +19,7 @@ describe("describeInvite", () => {
             activated: true,
             owner: "fulano (Fulano Silva)",
             destinations: ["SIP/ramal100"],
+            sipAccounts: [],
         })
         expect(text).toContain("11999990001 → 1133334444")
         expect(text).toContain("TRUNK-A, TRUNK-B (192.0.2.50)")
@@ -32,11 +33,23 @@ describe("describeInvite", () => {
             activated: false,
             owner: null,
             destinations: [],
+            sipAccounts: [],
         })
         expect(text).toContain("desconhecido (192.0.2.50)")
         expect(text).toContain("DID sem cliente")
         expect(text).toContain("sem destino configurado")
         expect(text).toContain("DID desativado")
+    })
+
+    test("mostra login SIP e avisa falta de callerid", () => {
+        const text = describeInvite(event, [], {
+            did: "1133334444",
+            activated: true,
+            owner: null,
+            destinations: ["Conta SIP u"],
+            sipAccounts: [{ username: "u", secret: "s3", callerid: "" }],
+        })
+        expect(text).toContain("**Login SIP:** `u` / `s3` (sem callerid)")
     })
 
     test("DID fora do Magnus é dito, Magnus indisponível é omitido", () => {
@@ -53,7 +66,16 @@ describe("inviteColor", () => {
         activated: true,
         owner: "10001",
         destinations: ["Conta SIP x"],
+        sipAccounts: [],
     }
+
+    test("laranja quando a conta SIP não tem callerid", () => {
+        const acc = { username: "u", secret: "s", callerid: "" }
+        expect(inviteColor({ ...did, sipAccounts: [acc] })).toBe(0xff6900)
+        expect(
+            inviteColor({ ...did, sipAccounts: [{ ...acc, callerid: "11" }] }),
+        ).toBe(0x00bc7d)
+    })
 
     test("verde quando o DID está ativo e tem destino", () => {
         expect(inviteColor(did)).toBe(0x00bc7d)

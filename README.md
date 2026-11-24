@@ -29,6 +29,7 @@ Ligação: 11999990001 → 1133334444
 Tronco: TRUNK-EXEMPLO (192.0.2.50)
 Cliente: 10001 (EMPRESA EXEMPLO)
 Destino: Conta SIP 551133334444CONTA
+Login SIP: 551133334444CONTA / senha-exemplo
 Hora: 08:36:36 (há 2 minutos)
 Call-ID: 4f1c...@UAC
 ```
@@ -38,7 +39,7 @@ A barra lateral da resposta muda de cor conforme o estado do DID no Magnus:
 | Cor | Significa |
 |---|---|
 | Verde | DID ativo e com destino |
-| Laranja | DID sem destino, ou ainda não cadastrado no Magnus |
+| Laranja | DID sem destino, ainda não cadastrado no Magnus, ou conta SIP de destino **sem callerid** (a linha do login ganha "(sem callerid)") |
 | Vermelho | DID desativado |
 
 ## Como funciona
@@ -61,6 +62,10 @@ flowchart LR
 4. Os INVITEs ficam num **buffer em memória** por 30 minutos. Sem banco e sem Redis.
 5. `/numero` olha o buffer. Se não achar nada, **espera até 2 minutos** por uma ligação nova e edita a mesma mensagem.
 6. Com `MAGNUS_DB_URL`, a resposta ganha **cliente** e **destino** lidos do MySQL do Magnus, somente leitura.
+
+### Login da conta SIP
+
+Quando o destino é uma Conta SIP (`voip_call` 1), a resposta mostra o usuário (`pkg_sip.defaultuser`) e a senha (`pkg_sip.secret`) dela. **A senha aparece em texto puro no Discord**: use `ALLOWED_ROLE_ID` e `ALLOWED_CHANNEL_ID` para limitar quem vê. Conta sem `defaultuser` não gera a linha.
 
 ### Tipos de destino
 
