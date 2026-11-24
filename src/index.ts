@@ -47,6 +47,7 @@ await startBot(
         allowedRoleId: env.ALLOWED_ROLE_ID,
         allowedChannelId: env.ALLOWED_CHANNEL_ID,
         carrierNames: carriers.names,
+        sipHost: env.SERVER_IP,
         magnus: env.MAGNUS_DB_URL ? createMagnus(env.MAGNUS_DB_URL) : undefined,
     },
     buffer,

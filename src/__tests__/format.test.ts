@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test"
 import type { InviteEvent } from "../buffer"
 import {
+    describeCredentials,
     describeFooter,
     describeInvite,
     describeLogin,
@@ -146,6 +147,22 @@ describe("describeLogin", () => {
     test("avisa falta de callerid", () => {
         expect(describeLogin({ ...acc, callerid: "" })).toContain(
             "Sem callerid na conta SIP",
+        )
+    })
+})
+
+describe("describeCredentials", () => {
+    test("uma linha por dado, com a senha", () => {
+        const did = {
+            did: "551133334444",
+            activated: true,
+            owner: null,
+            destinations: [],
+            sipAccounts: [],
+        }
+        const acc = { username: "u1", secret: "s3cr3t", callerid: "11" }
+        expect(describeCredentials(did, acc, "192.0.2.10")).toBe(
+            "Dados da linha: 551133334444\nUsuário: u1\nSenha: s3cr3t\nHost: 192.0.2.10",
         )
     })
 })

@@ -16,6 +16,7 @@ import {
 } from "discord.js"
 import type { InviteBuffer, InviteEvent } from "./buffer"
 import {
+    describeCredentials,
     describeFooter,
     describeInvite,
     describeLogin,
@@ -26,7 +27,8 @@ import { numberKey } from "./number"
 
 const WAIT_MS = 120_000
 const MAX_ACCOUNTS = 3
-const LOGIN_ID = /^login:(user|pass):(\d+):(\d+)$/
+// Aceita também os ids antigos (user, pass) de mensagens já postadas: todos devolvem os dados juntos
+const LOGIN_ID = /^login:(?:user|pass|data):(\d+):(\d+)$/
 
 // Toda edição da resposta é Components V2: a flag não sai depois de posta
 const text = (content: string) => new TextDisplayBuilder().setContent(content)
@@ -34,10 +36,10 @@ const status = (content: string) => ({
     components: [text(content)],
     flags: MessageFlags.IsComponentsV2 as const,
 })
-const copyButton = (field: "user" | "pass", key: string, index: number) =>
+const copyButton = (key: string, index: number) =>
     new ButtonBuilder()
-        .setCustomId(`login:${field}:${key}:${index}`)
-        .setLabel(field === "user" ? "Copiar usuário" : "Copiar senha")
+        .setCustomId(`login:data:${key}:${index}`)
+        .setLabel("Copiar dados")
         .setEmoji("📋")
         .setStyle(ButtonStyle.Secondary)
 
@@ -48,6 +50,7 @@ type BotConfig = {
     allowedChannelId?: string | undefined
     carrierNames: (ip: string) => string[] | undefined
     magnus?: MagnusLookup | undefined
+    sipHost: string
 }
 
 export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
@@ -91,8 +94,7 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
                 .addTextDisplayComponents(text(describeLogin(account)))
                 .addActionRowComponents(
                     new ActionRowBuilder<ButtonBuilder>().addComponents(
-                        copyButton("user", event.key, i),
-                        copyButton("pass", event.key, i),
+                        copyButton(event.key, i),
                     ),
                 )
         }
@@ -224,17 +226,14 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
             })
             return
         }
-        const [, field, key, index] = match
+        const [, key, index] = match
         const did = await config.magnus?.(key as string)
         const account = did?.sipAccounts[Number(index)]
-        const value = field === "user" ? account?.username : account?.secret
         await interaction.reply({
-            // Crase no valor fecharia o bloco: nesse caso usa código em linha com crase dupla
-            content: value
-                ? value.includes("`")
-                    ? `\`\` ${value} \`\``
-                    : `\`\`\`\n${value}\n\`\`\``
-                : "Conta SIP não encontrada, consulte o número de novo.",
+            content:
+                did && account
+                    ? `\`\`\`\n${describeCredentials(did, account, config.sipHost)}\n\`\`\``
+                    : "Conta SIP não encontrada, consulte o número de novo.",
             flags: MessageFlags.Ephemeral,
         })
     }

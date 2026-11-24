@@ -68,5 +68,18 @@ export const describeLogin = (account: SipAccount) => {
     const cid = account.callerid
         ? `-# Callerid ${escapeMarkdown(account.callerid)}`
         : "**Sem callerid na conta SIP**"
-    return `**Usuário**\n\`\`\`\n${user}\n\`\`\`\n**Senha**\n\`\`\`\nOculta. Use o botão Copiar senha.\n\`\`\`\n${cid}`
+    return `**Usuário**\n\`\`\`\n${user}\n\`\`\`\n**Senha**\n\`\`\`\nOculta. Use o botão Copiar dados.\n\`\`\`\n${cid}`
 }
+
+// Texto para colar no softphone: uma linha por dado. Vai só na resposta efêmera, nunca no canal.
+export const describeCredentials = (
+    did: DidInfo,
+    account: SipAccount,
+    host: string,
+) =>
+    [
+        `Dados da linha: ${did.did}`,
+        `Usuário: ${account.username}`,
+        `Senha: ${account.secret}`,
+        `Host: ${host}`,
+    ].join("\n")
