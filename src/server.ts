@@ -1,5 +1,7 @@
 // API HTTP local: consulta se um número recebeu INVITE na janela, opcionalmente esperando um novo.
 import { timingSafeEqual } from "node:crypto"
+import helmet from "@fastify/helmet"
+import rateLimit from "@fastify/rate-limit"
 import Fastify from "fastify"
 import { z } from "zod"
 import type { InviteBuffer } from "./buffer"
@@ -9,8 +11,11 @@ const querySchema = z.object({
     wait: z.coerce.number().int().min(0).max(120).default(0),
 })
 
-export const buildServer = (buffer: InviteBuffer, token: string) => {
+export const buildServer = async (buffer: InviteBuffer, token: string) => {
     const app = Fastify({ logger: true })
+    await app.register(helmet)
+    // Registrado antes da autenticação: tentativa de token errado também conta no limite
+    await app.register(rateLimit, { max: 100, timeWindow: "1 minute" })
     const expected = Buffer.from(`Bearer ${token}`)
 
     // async é obrigatório: guard síncrono sem Promise trava a request no Fastify

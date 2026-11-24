@@ -36,7 +36,7 @@ capture.exited.then((code) => {
     process.exit(1)
 })
 
-await buildServer(buffer, env.API_TOKEN).listen({
+await (await buildServer(buffer, env.API_TOKEN)).listen({
     host: "127.0.0.1",
     port: env.API_PORT,
 })

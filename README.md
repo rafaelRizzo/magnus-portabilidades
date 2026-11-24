@@ -153,7 +153,7 @@ Aceita o número com ou sem `55`. Também há uma API local, só em `127.0.0.1`:
 curl -H "Authorization: Bearer $API_TOKEN" "http://127.0.0.1:3100/numero/551133334444?wait=0"
 ```
 
-`wait` é em segundos, de 0 a 120.
+`wait` é em segundos, de 0 a 120. A API manda os cabeçalhos do `@fastify/helmet` e limita a 100 requisições por minuto (resposta `429` depois disso), contando também as com token errado.
 
 ## Deploy
 
