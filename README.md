@@ -74,10 +74,10 @@ Quando o destino é uma Conta SIP (`voip_call` 1), a resposta mostra o usuário 
 Dados da linha: 551133334444
 Usuário: 551133334444CONTA
 Senha: senha-exemplo
-Host: 192.0.2.10
+Host: sip.exemplo.com.br
 ```
 
-O `Host` é o `SERVER_IP`. O botão relê o Magnus na hora e passa pelas mesmas travas de servidor, cargo e canal do `/numero`. Mostra até 3 contas SIP por número. A resposta usa Components V2.
+O `Host` vem de `SIP_HOST` (ou do `SERVER_IP`, se vazio). O botão relê o Magnus na hora e passa pelas mesmas travas de servidor, cargo e canal do `/numero`. Mostra até 3 contas SIP por número. A resposta usa Components V2.
 
 ### Tipos de destino
 
@@ -105,6 +105,7 @@ Copie `.env.example` para `.env` e preencha:
 | Variável | Obrigatória | Descrição |
 |---|---|---|
 | `SERVER_IP` | sim | IP do servidor Magnus, destino dos INVITEs na porta 5060 |
+| `SIP_HOST` | não | Domínio SIP mostrado em `Host` no *Copiar dados* (ex: `sip.exemplo.com.br`). Se vazio, usa o `SERVER_IP` |
 | `API_TOKEN` | sim | Token Bearer da API local, mínimo 16 caracteres (`openssl rand -hex 32`) |
 | `API_PORT` | não | Porta da API local, padrão `3100` |
 | `DISCORD_TOKEN` | sim | Token do bot |
