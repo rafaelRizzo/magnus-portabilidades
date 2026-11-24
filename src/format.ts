@@ -27,8 +27,8 @@ const escapeMarkdown = (text: string, max = 64) =>
         .slice(0, max)
         .replace(/[\\*_~`|>[\]()<@:#]/g, "\\$&")
 
-// Item de lista com o valor numa citação logo abaixo
-const row = (label: string, value: string) => `- **${label}**\n> ${value}`
+// Uma linha por campo: rótulo em negrito e valor
+const row = (label: string, value: string) => `**${label}:** ${value}`
 
 // did: undefined = Magnus indisponível, null = DID não cadastrado, objeto = cadastrado
 export const describeInvite = (

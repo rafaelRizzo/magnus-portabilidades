@@ -25,18 +25,12 @@ Você liga de um celular para o número e digita `/numero` no Discord. O bot lê
 
 ```
 Número 1133334444 está conosco
-- Ligação
-> 11999990001 → 1133334444
-- Tronco
-> TRUNK-EXEMPLO (192.0.2.50)
-- Cliente
-> 10001 (EMPRESA EXEMPLO)
-- Dist
-> DIST-EXEMPLO
-- Status
-> Ativo
-- Destino
-> Conta SIP 551133334444CONTA
+Ligação: 11999990001 → 1133334444
+Tronco: TRUNK-EXEMPLO (192.0.2.50)
+Cliente: 10001 (EMPRESA EXEMPLO)
+Dist: DIST-EXEMPLO
+Status: Ativo
+Destino: Conta SIP 551133334444CONTA
 
 Usuário: 551133334444CONTA
 Senha: oculta, use o botão
