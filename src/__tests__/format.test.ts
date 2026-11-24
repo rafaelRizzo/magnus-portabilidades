@@ -1,7 +1,12 @@
 // Testes do texto de resposta: tronco conhecido, DID cadastrado, sem cadastro e Magnus indisponível.
 import { describe, expect, test } from "bun:test"
 import type { InviteEvent } from "../buffer"
-import { describeInvite, inviteColor } from "../format"
+import {
+    describeFooter,
+    describeInvite,
+    describeLogin,
+    inviteColor,
+} from "../format"
 
 const event: InviteEvent = {
     key: "1133334444",
@@ -23,7 +28,7 @@ describe("describeInvite", () => {
         })
         expect(text).toContain("11999990001 → 1133334444")
         expect(text).toContain("TRUNK-A, TRUNK-B (192.0.2.50)")
-        expect(text).toContain("**Cliente:** fulano (Fulano Silva)")
+        expect(text).toContain("**Cliente:** fulano \\(Fulano Silva\\)")
         expect(text).toContain("**Destino:** SIP/ramal100")
     })
 
@@ -39,17 +44,6 @@ describe("describeInvite", () => {
         expect(text).toContain("DID sem cliente")
         expect(text).toContain("sem destino configurado")
         expect(text).toContain("DID desativado")
-    })
-
-    test("mostra login SIP e avisa falta de callerid", () => {
-        const text = describeInvite(event, [], {
-            did: "1133334444",
-            activated: true,
-            owner: null,
-            destinations: ["Conta SIP u"],
-            sipAccounts: [{ username: "u", secret: "s3", callerid: "" }],
-        })
-        expect(text).toContain("**Login SIP:** `u` / `s3` (sem callerid)")
     })
 
     test("DID fora do Magnus é dito, Magnus indisponível é omitido", () => {
@@ -112,6 +106,46 @@ describe("describeInvite com campos hostis", () => {
         expect(text).not.toContain("[x]")
         expect(text).toContain("\\[x\\]\\(http\\://evil.test\\)")
         expect(text).toContain("\\@everyone")
-        expect(text).toContain("`ab`")
+        expect(describeFooter({ ...event, callId: "a`b" })).toContain("`ab`")
+    })
+})
+
+describe("campos do Magnus hostis", () => {
+    test("cliente, destino e tronco viram uma linha e sem markdown ativo", () => {
+        const text = describeInvite(event, ["T\n# x"], {
+            did: "1",
+            activated: true,
+            owner: "**a**\n-# b [l](http://evil.test)",
+            destinations: ["Contexto: <@123>"],
+            sipAccounts: [],
+        })
+        expect(text.split("\n")).toHaveLength(4)
+        expect(text).not.toContain("**a**")
+        expect(text).toContain("\\<\\@123\\>")
+        expect(text).toContain("\\[l\\]")
+    })
+})
+
+describe("describeLogin", () => {
+    const acc = { username: "u`ser", secret: "s3cr3t", callerid: "1133334444" }
+
+    test("mostra o usuário e nunca a senha", () => {
+        const text = describeLogin(acc)
+        expect(text).toContain("user")
+        expect(text).toContain("Callerid 1133334444")
+        expect(text).not.toContain("s3cr3t")
+    })
+
+    test("callerid com quebra de linha não forja outro bloco", () => {
+        const text = describeLogin({ ...acc, callerid: "1\n## x" })
+        expect(text.split("\n").filter((l) => l.startsWith("##"))).toHaveLength(
+            0,
+        )
+    })
+
+    test("avisa falta de callerid", () => {
+        expect(describeLogin({ ...acc, callerid: "" })).toContain(
+            "Sem callerid na conta SIP",
+        )
     })
 })

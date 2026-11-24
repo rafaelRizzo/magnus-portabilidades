@@ -29,9 +29,12 @@ Ligação: 11999990001 → 1133334444
 Tronco: TRUNK-EXEMPLO (192.0.2.50)
 Cliente: 10001 (EMPRESA EXEMPLO)
 Destino: Conta SIP 551133334444CONTA
-Login SIP: 551133334444CONTA / senha-exemplo
-Hora: 08:36:36 (há 2 minutos)
-Call-ID: 4f1c...@UAC
+
+Usuário: 551133334444CONTA
+Senha: oculta, use o botão
+[Copiar usuário] [Copiar senha]
+
+Call-ID 4f1c...@UAC · 08:36:36 (há 2 minutos)
 ```
 
 A barra lateral da resposta muda de cor conforme o estado do DID no Magnus:
@@ -39,7 +42,7 @@ A barra lateral da resposta muda de cor conforme o estado do DID no Magnus:
 | Cor | Significa |
 |---|---|
 | Verde | DID ativo e com destino |
-| Laranja | DID sem destino, ainda não cadastrado no Magnus, ou conta SIP de destino **sem callerid** (a linha do login ganha "(sem callerid)") |
+| Laranja | DID sem destino, ainda não cadastrado no Magnus, ou conta SIP de destino **sem callerid** (o login mostra "Sem callerid na conta SIP") |
 | Vermelho | DID desativado |
 
 ## Como funciona
@@ -65,7 +68,7 @@ flowchart LR
 
 ### Login da conta SIP
 
-Quando o destino é uma Conta SIP (`voip_call` 1), a resposta mostra o usuário (`pkg_sip.defaultuser`) e a senha (`pkg_sip.secret`) dela. **A senha aparece em texto puro no Discord**: use `ALLOWED_ROLE_ID` e `ALLOWED_CHANNEL_ID` para limitar quem vê. Conta sem `defaultuser` não gera a linha.
+Quando o destino é uma Conta SIP (`voip_call` 1), a resposta mostra o usuário (`pkg_sip.defaultuser`) e dois botões. **A senha nunca aparece no canal**: ao clicar em *Copiar senha* (ou *Copiar usuário*), o bot responde só para quem clicou (mensagem efêmera) com o valor sozinho num bloco de código, pronto para copiar. O botão relê o Magnus na hora e passa pelas mesmas travas de servidor, cargo e canal do `/numero`. Mostra até 3 contas SIP por número. A resposta usa Components V2.
 
 ### Tipos de destino
 

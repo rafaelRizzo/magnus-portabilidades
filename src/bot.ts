@@ -1,19 +1,45 @@
 // Bot Discord: slash command /numero consulta a janela de INVITEs e espera uma ligação nova se preciso.
 import {
+    ActionRowBuilder,
     ApplicationCommandOptionType,
+    ButtonBuilder,
+    type ButtonInteraction,
+    ButtonStyle,
     type ChatInputCommandInteraction,
     Client,
-    EmbedBuilder,
+    ContainerBuilder,
     Events,
     GatewayIntentBits,
     MessageFlags,
+    SeparatorBuilder,
+    TextDisplayBuilder,
 } from "discord.js"
 import type { InviteBuffer, InviteEvent } from "./buffer"
-import { describeInvite, inviteColor } from "./format"
+import {
+    describeFooter,
+    describeInvite,
+    describeLogin,
+    inviteColor,
+} from "./format"
 import type { DidInfo, MagnusLookup } from "./magnus"
 import { numberKey } from "./number"
 
 const WAIT_MS = 120_000
+const MAX_ACCOUNTS = 3
+const LOGIN_ID = /^login:(user|pass):(\d+):(\d+)$/
+
+// Toda edição da resposta é Components V2: a flag não sai depois de posta
+const text = (content: string) => new TextDisplayBuilder().setContent(content)
+const status = (content: string) => ({
+    components: [text(content)],
+    flags: MessageFlags.IsComponentsV2 as const,
+})
+const copyButton = (field: "user" | "pass", key: string, index: number) =>
+    new ButtonBuilder()
+        .setCustomId(`login:${field}:${key}:${index}`)
+        .setLabel(field === "user" ? "Copiar usuário" : "Copiar senha")
+        .setEmoji("📋")
+        .setStyle(ButtonStyle.Secondary)
 
 type BotConfig = {
     token: string
@@ -42,14 +68,41 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
             console.error("Falha ao consultar o Magnus:", error)
             note = "\n**Magnus:** consulta falhou, veja o log do serviço"
         }
-        const embed = new EmbedBuilder()
-            .setColor(inviteColor(did))
-            .setTitle(`Número ${event.key} está conosco`)
-            .setDescription(
-                describeInvite(event, config.carrierNames(event.srcIp), did) +
-                    note,
+        const container = new ContainerBuilder()
+            .setAccentColor(inviteColor(did))
+            .addTextDisplayComponents(
+                text(`## Número ${event.key} está conosco`),
             )
-        return { content: "", embeds: [embed] }
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addTextDisplayComponents(
+                text(
+                    describeInvite(
+                        event,
+                        config.carrierNames(event.srcIp),
+                        did,
+                    ) + note,
+                ),
+            )
+        for (const [i, account] of (did?.sipAccounts ?? [])
+            .slice(0, MAX_ACCOUNTS)
+            .entries()) {
+            container
+                .addSeparatorComponents(new SeparatorBuilder())
+                .addTextDisplayComponents(text(describeLogin(account)))
+                .addActionRowComponents(
+                    new ActionRowBuilder<ButtonBuilder>().addComponents(
+                        copyButton("user", event.key, i),
+                        copyButton("pass", event.key, i),
+                    ),
+                )
+        }
+        container
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addTextDisplayComponents(text(describeFooter(event)))
+        return {
+            components: [container],
+            flags: MessageFlags.IsComponentsV2 as const,
+        }
     }
 
     // Comando antigo continua valendo onde foi registrado: remove o /numero de qualquer outro servidor e do escopo global
@@ -107,25 +160,25 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
         )
     })
 
-    const handleNumero = async (interaction: ChatInputCommandInteraction) => {
-        // O Discord entrega a interação de qualquer servidor onde o comando exista: só o do .env é atendido
-        if (interaction.guildId !== config.guildId) {
-            await interaction.reply({
-                content: "Este bot não está autorizado neste servidor.",
-                flags: MessageFlags.Ephemeral,
-            })
-            return
+    // O Discord entrega a interação de qualquer servidor onde o comando exista: só o do .env é atendido
+    const refusal = (i: ChatInputCommandInteraction | ButtonInteraction) => {
+        if (i.guildId !== config.guildId) {
+            return "Este bot não está autorizado neste servidor."
         }
-        if (!interaction.inCachedGuild()) return
-
+        if (!i.inCachedGuild()) return "Sem permissão."
         const denied =
             (config.allowedChannelId &&
-                interaction.channelId !== config.allowedChannelId) ||
+                i.channelId !== config.allowedChannelId) ||
             (config.allowedRoleId &&
-                !interaction.member.roles.cache.has(config.allowedRoleId))
+                !i.member.roles.cache.has(config.allowedRoleId))
+        return denied ? "Sem permissão." : null
+    }
+
+    const handleNumero = async (interaction: ChatInputCommandInteraction) => {
+        const denied = refusal(interaction)
         if (denied) {
             await interaction.reply({
-                content: "Sem permissão.",
+                content: denied,
                 flags: MessageFlags.Ephemeral,
             })
             return
@@ -148,30 +201,61 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
         }
 
         await interaction.editReply(
-            `Nenhum INVITE para **${key}** nos últimos 30 min. Aguardando ligação por 2 min, ligue agora.`,
+            status(
+                `Nenhum INVITE para **${key}** nos últimos 30 min. Aguardando ligação por 2 min, ligue agora.`,
+            ),
         )
         const arrived = await buffer.wait(key, WAIT_MS)
         await interaction.editReply(
             arrived
                 ? await render(arrived)
-                : `Nenhum INVITE para **${key}** chegou em 2 min.`,
+                : status(`Nenhum INVITE para **${key}** chegou em 2 min.`),
         )
+    }
+
+    // O segredo não viaja no custom_id (visível ao cliente): relê do Magnus e responde só a quem clicou
+    const handleLogin = async (interaction: ButtonInteraction) => {
+        const denied = refusal(interaction)
+        const match = LOGIN_ID.exec(interaction.customId)
+        if (denied || !match) {
+            await interaction.reply({
+                content: denied ?? "Botão inválido.",
+                flags: MessageFlags.Ephemeral,
+            })
+            return
+        }
+        const [, field, key, index] = match
+        const did = await config.magnus?.(key as string)
+        const account = did?.sipAccounts[Number(index)]
+        const value = field === "user" ? account?.username : account?.secret
+        await interaction.reply({
+            // Crase no valor fecharia o bloco: nesse caso usa código em linha com crase dupla
+            content: value
+                ? value.includes("`")
+                    ? `\`\` ${value} \`\``
+                    : `\`\`\`\n${value}\n\`\`\``
+                : "Conta SIP não encontrada, consulte o número de novo.",
+            flags: MessageFlags.Ephemeral,
+        })
     }
 
     // Erro na interação não pode virar unhandled rejection: derrubaria o processo e perderia a janela de INVITEs
     client.on(Events.InteractionCreate, async (interaction) => {
-        if (
-            !interaction.isChatInputCommand() ||
-            interaction.commandName !== "numero"
-        )
-            return
+        const isCommand =
+            interaction.isChatInputCommand() &&
+            interaction.commandName === "numero"
+        const isLogin =
+            interaction.isButton() && interaction.customId.startsWith("login:")
+        if (!isCommand && !isLogin) return
         try {
-            await handleNumero(interaction)
+            if (interaction.isChatInputCommand())
+                await handleNumero(interaction)
+            else if (interaction.isButton()) await handleLogin(interaction)
         } catch (error) {
-            console.error("Falha ao atender /numero:", error)
+            console.error("Falha ao atender a interação:", error)
             const content = "Erro interno ao consultar, tente de novo."
             await (interaction.deferred || interaction.replied
-                ? interaction.editReply(content)
+                ? interaction.editReply(status(content))
                 : interaction.reply({
                       content,
                       flags: MessageFlags.Ephemeral,
