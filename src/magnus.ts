@@ -13,6 +13,8 @@ export type DidInfo = {
     did: string
     activated: boolean
     owner: string | null
+    dist?: string | null
+    userStatus?: string | null
     destinations: string[]
     sipAccounts: SipAccount[]
 }
@@ -97,12 +99,25 @@ export const toSipAccount = (row: DestinationRow): SipAccount => ({
     callerid: row.callerid?.trim() ?? "",
 })
 
+// Status do cliente em pkg_user.active. shortcut: valores fora de 0-4 caem em `status N`, mapear quando surgirem.
+const USER_STATUS = [
+    "Inativo",
+    "Ativo",
+    "Pendente",
+    "Bloqueado",
+    "Bloqueado em chamada",
+]
+export const describeUserStatus = (
+    active: number | string | null | undefined,
+) =>
+    active == null ? null : (USER_STATUS[Number(active)] ?? `status ${active}`)
+
 export const createMagnus = (url: string): MagnusLookup => {
     const sql = new SQL(url)
 
     return async (key) => {
         const rows = await sql`
-            SELECT d.id, d.did, d.activated, u.username, u.firstname, u.lastname, u.company_name
+            SELECT d.id, d.did, d.activated, u.username, u.firstname, u.lastname, u.company_name, u.dist, u.active
             FROM pkg_did d
             LEFT JOIN pkg_user u ON u.id = d.id_user
             WHERE d.did LIKE ${`%${key.slice(-8)}`}`
@@ -122,6 +137,8 @@ export const createMagnus = (url: string): MagnusLookup => {
             did: String(row.did),
             activated: Number(row.activated) === 1,
             owner: describeOwner(row),
+            dist: row.dist?.trim() || null,
+            userStatus: describeUserStatus(row.active),
             destinations: destinations.map(describeDestination).filter(Boolean),
             sipAccounts: destinations.filter(isSipAccount).map(toSipAccount),
         }

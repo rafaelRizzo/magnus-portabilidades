@@ -27,6 +27,9 @@ const escapeMarkdown = (text: string, max = 64) =>
         .slice(0, max)
         .replace(/[\\*_~`|>[\]()<@:#]/g, "\\$&")
 
+// Item de lista com o valor numa citação logo abaixo
+const row = (label: string, value: string) => `- **${label}**\n> ${value}`
+
 // did: undefined = Magnus indisponível, null = DID não cadastrado, objeto = cadastrado
 export const describeInvite = (
     event: InviteEvent,
@@ -34,20 +37,40 @@ export const describeInvite = (
     did: DidInfo | null | undefined,
 ) => {
     const lines = [
-        `**Ligação:** ${escapeMarkdown(event.from)} → ${escapeMarkdown(event.called)}`,
-        `**Tronco:** ${trunks?.map((t) => escapeMarkdown(t)).join(", ") ?? "desconhecido"} (${escapeMarkdown(event.srcIp)})`,
+        row(
+            "Ligação",
+            `${escapeMarkdown(event.from)} → ${escapeMarkdown(event.called)}`,
+        ),
+        row(
+            "Tronco",
+            `${trunks?.map((t) => escapeMarkdown(t)).join(", ") ?? "desconhecido"} (${escapeMarkdown(event.srcIp)})`,
+        ),
     ]
 
     if (did === null) {
-        lines.push("**Cliente:** DID ainda não cadastrado no Magnus")
+        lines.push(row("Cliente", "DID ainda não cadastrado no Magnus"))
     } else if (did) {
         lines.push(
-            `**Cliente:** ${did.owner ? escapeMarkdown(did.owner, 128) : "DID sem cliente"}`,
+            row(
+                "Cliente",
+                did.owner ? escapeMarkdown(did.owner, 128) : "DID sem cliente",
+            ),
         )
+        if (did.dist) lines.push(row("Dist", escapeMarkdown(did.dist, 100)))
+        if (did.userStatus)
+            lines.push(row("Status", escapeMarkdown(did.userStatus)))
         lines.push(
-            `**Destino:** ${did.destinations.length ? did.destinations.map((d) => escapeMarkdown(d, 128)).join(", ") : "sem destino configurado"}`,
+            row(
+                "Destino",
+                did.destinations.length
+                    ? did.destinations
+                          .map((d) => escapeMarkdown(d, 128))
+                          .join(", ")
+                    : "sem destino configurado",
+            ),
         )
-        if (!did.activated) lines.push("**Atenção:** DID desativado no Magnus")
+        if (!did.activated)
+            lines.push(row("Atenção", "DID desativado no Magnus"))
     }
 
     return lines.join("\n")

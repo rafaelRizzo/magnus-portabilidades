@@ -25,10 +25,18 @@ Você liga de um celular para o número e digita `/numero` no Discord. O bot lê
 
 ```
 Número 1133334444 está conosco
-Ligação: 11999990001 → 1133334444
-Tronco: TRUNK-EXEMPLO (192.0.2.50)
-Cliente: 10001 (EMPRESA EXEMPLO)
-Destino: Conta SIP 551133334444CONTA
+- Ligação
+> 11999990001 → 1133334444
+- Tronco
+> TRUNK-EXEMPLO (192.0.2.50)
+- Cliente
+> 10001 (EMPRESA EXEMPLO)
+- Dist
+> DIST-EXEMPLO
+- Status
+> Ativo
+- Destino
+> Conta SIP 551133334444CONTA
 
 Usuário: 551133334444CONTA
 Senha: oculta, use o botão
@@ -64,7 +72,7 @@ flowchart LR
 3. O número é comparado por **DDD + últimos 8 dígitos**, o que cobre `55`, `+`, `0` inicial e o 9º dígito.
 4. Os INVITEs ficam num **buffer em memória** por 30 minutos. Sem banco e sem Redis.
 5. `/numero` olha o buffer. Se não achar nada, **espera até 2 minutos** por uma ligação nova e edita a mesma mensagem.
-6. Com `MAGNUS_DB_URL`, a resposta ganha **cliente** e **destino** lidos do MySQL do Magnus, somente leitura.
+6. Com `MAGNUS_DB_URL`, a resposta ganha **cliente**, **dist** (`pkg_user.dist`), **status** do cliente (`pkg_user.active`) e **destino** lidos do MySQL do Magnus, somente leitura.
 
 ### Login da conta SIP
 

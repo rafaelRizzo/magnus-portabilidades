@@ -1,6 +1,11 @@
 // Testes da leitura do destino com linhas reais de pkg_did_destination (dados fictícios).
 import { describe, expect, test } from "bun:test"
-import { describeDestination, describeOwner, toSipAccount } from "../magnus"
+import {
+    describeDestination,
+    describeOwner,
+    describeUserStatus,
+    toSipAccount,
+} from "../magnus"
 
 describe("describeOwner", () => {
     const base = { username: "10001", company_name: null }
@@ -151,5 +156,14 @@ describe("toSipAccount", () => {
             secret: "s",
             callerid: "1133334444",
         })
+    })
+})
+
+describe("describeUserStatus", () => {
+    test("mapeia os status conhecidos, desconhecido vira status N, sem cliente é nulo", () => {
+        expect(describeUserStatus(1)).toBe("Ativo")
+        expect(describeUserStatus("0")).toBe("Inativo")
+        expect(describeUserStatus(9)).toBe("status 9")
+        expect(describeUserStatus(null)).toBeNull()
     })
 })
