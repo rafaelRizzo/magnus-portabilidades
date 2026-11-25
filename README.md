@@ -24,7 +24,7 @@ Durante uma portabilidade, alguém precisa ficar conferindo se o número já est
 Você liga de um celular para o número e digita `/numero` no Discord. O bot lê os INVITEs SIP direto da porta 5060 e responde:
 
 ```
-Número 1133334444 está conosco
+Número 551133334444 está conosco
 Ligação: 11999990001 → 1133334444
 Tronco: TRUNK-EXEMPLO (192.0.2.50)
 Cliente: 10001 (EMPRESA EXEMPLO)
@@ -63,10 +63,10 @@ flowchart LR
 
 1. O **coletor** roda `tcpdump` só para INVITEs UDP que chegam ao servidor e extrai número chamado, quem ligou, IP de origem e `Call-ID`.
 2. Só contam INVITEs vindos de **IP de operadora**. A lista vem do `asterisk -rx "sip show peers"` e é relida a cada 60 segundos, então um trunk novo ou com IP novo entra sozinho.
-3. O número é comparado por **DDD + últimos 8 dígitos**, o que cobre `55`, `+`, `0` inicial e o 9º dígito.
+3. O número é comparado por **55 + DDD + últimos 8 dígitos**. Qualquer formato de entrada vale (com ou sem `55`, `+`, `0` inicial e 9º dígito) e a forma comparada sempre sai com `55`.
 4. Os INVITEs ficam num **buffer em memória** por 30 minutos. Sem banco e sem Redis.
 5. `/numero` olha o buffer. Se não achar nada, **espera até 2 minutos** por uma ligação nova e edita a mesma mensagem.
-6. Com `MAGNUS_DB_URL`, a resposta ganha **cliente**, **dist** (`pkg_user.dist`), **status** do cliente (`pkg_user.active`) e **destino** lidos do MySQL do Magnus, somente leitura.
+6. Com `MAGNUS_DB_URL`, a resposta ganha **cliente**, **dist** (`pkg_user.dist`), **status** do cliente (`pkg_user.active`) e **destino** lidos do MySQL do Magnus (a consulta só lê; só o `/inativar` escreve, veja abaixo).
 
 ### Login da conta SIP
 
@@ -92,6 +92,28 @@ O `Host` vem de `SIP_HOST` (ou do `SERVER_IP`, se vazio). O botão relê o Magnu
 | 10 | `Contexto: SIP/111` (alvos do `Dial`), ou a aplicação do dialplan |
 | 11 | `IP pbx.exemplo.com` |
 | outro | `tipo N` |
+
+### Inativar um DID
+
+`/inativar 551133334444 linha cancelada a pedido do cliente` libera e inativa **um** DID, depois de um botão de confirmação (expira em 60 s e só quem pediu consegue clicar). Usa as mesmas travas de servidor, cargo e canal do `/numero` (`DISCORD_GUILD_ID`, `ALLOWED_ROLE_ID`, `ALLOWED_CHANNEL_ID`), sem cargo de admin separado.
+
+Numa única transação (qualquer erro desfaz tudo), o bot:
+
+1. grava em `pkg_did_history` quem inativou, o motivo e o dono anterior, e fecha o uso aberto em `pkg_did_use`, como a tela *Liberar DID* do Magnus;
+2. apaga os destinos do DID (`pkg_did_destination`);
+3. deixa o DID sem dono, **não reservado** e **inativo**.
+
+Travas:
+
+- O **motivo é obrigatório** (de 3 a 200 caracteres): quem pediu e por quê, no mesmo texto livre que a equipe já escrevia na mão.
+- Só dígitos, de 10 a 14. `%`, `_`, `*`, `+`, espaço e hífen são recusados, nada é limpo.
+- **Um DID por vez.** Se mais de um casar com o número (a chave perde o 9º dígito), nada muda e o bot lista os candidatos: digite o número exatamente como está no Magnus.
+- Age pelo `id` do DID, conferido de novo sob `FOR UPDATE` antes de escrever. Se o dono ou o número mudou entre o pedido e o clique, recusa.
+- Nunca ativa nem reserva, e não existe `/reativar`: reativar continua sendo pela tela do Magnus.
+- Não toca em saldo, tarifa, cliente nem na descrição do DID.
+- DID já inativo, livre, não reservado e sem destinos responde "já inativo" e não escreve nada.
+
+Auditoria: uma linha no `pkg_did_history` com "Inativado via Discord por <usuário> (<id>). Motivo: ..." (aparece na tela do Magnus), a mensagem no canal com o motivo e o estado anterior, e um log JSON `did_inativado` no `journalctl`. Num DID que já estava sem dono não há linha de histórico, então o motivo fica só no canal e no log.
 
 ## Requisitos
 
@@ -122,7 +144,7 @@ Copie `.env.example` para `.env` e preencha:
 2. Convide o bot com os escopos `bot` e `applications.commands`, senão o `/numero` não aparece.
 3. Preencha `DISCORD_GUILD_ID`. O bot só atende nesse servidor: em qualquer outro responde "não autorizado", e na subida ele apaga o `/numero` antigo dos outros servidores e do escopo global. Para tirar o bot de vez de um servidor, expulse-o de lá. Para impedir convites novos, desmarque **Public Bot** no Developer Portal.
 
-### Usuário somente leitura no Magnus
+### Usuário do Magnus (leitura)
 
 ```bash
 SENHA=$(openssl rand -hex 16); echo "$SENHA"
@@ -133,6 +155,38 @@ GRANT SELECT ON mbilling.pkg_user TO 'portab'@'localhost';
 GRANT SELECT ON mbilling.pkg_sip TO 'portab'@'localhost';"
 ```
 
+### Grants extras para o /inativar
+
+O `/inativar` usa o mesmo usuário `portab` da consulta e precisa **dos dois blocos**: os `SELECT` de leitura acima (ele lê `pkg_did`, `pkg_did_destination` e `pkg_user` antes de escrever) mais estes extras. A escrita é **por coluna**, então mesmo com um bug o usuário não consegue alterar tarifa, descrição, saldo nem apagar um DID.
+
+```bash
+mysql -uroot -p -e "GRANT UPDATE (id_user, reserved, activated) ON mbilling.pkg_did TO 'portab'@'localhost';
+GRANT DELETE ON mbilling.pkg_did_destination TO 'portab'@'localhost';
+GRANT SELECT, UPDATE (status, releasedate) ON mbilling.pkg_did_use TO 'portab'@'localhost';
+GRANT INSERT ON mbilling.pkg_did_history TO 'portab'@'localhost';"
+```
+
+Para conferir, `SHOW GRANTS FOR 'portab'@'localhost';` deve listar (a ordem pode variar):
+
+```
+GRANT SELECT, UPDATE (reserved, activated, id_user) ON `mbilling`.`pkg_did`
+GRANT SELECT, DELETE ON `mbilling`.`pkg_did_destination`
+GRANT SELECT, UPDATE (status, releasedate) ON `mbilling`.`pkg_did_use`
+GRANT INSERT ON `mbilling`.`pkg_did_history`
+GRANT SELECT ON `mbilling`.`pkg_user`
+GRANT SELECT ON `mbilling`.`pkg_sip`
+```
+
+Faltando algum `SELECT`, o `/inativar` responde "Erro ao inativar" e o log do serviço mostra `SELECT command denied`.
+
+Não há variável nova: o `/inativar` usa o `MAGNUS_DB_URL` e só é registrado quando ele está preenchido. Sem os grants acima, o comando responde com erro e não altera nada.
+
+Antes de usar em produção:
+
+1. Confirme que as tabelas são **InnoDB**. Em MyISAM o `FOR UPDATE` e o desfazer da transação não funcionam:
+   `SELECT TABLE_NAME, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA='mbilling' AND TABLE_NAME LIKE 'pkg_did%';`
+2. Teste com um DID de teste e confira na tela do Magnus (dono, destinos, histórico) e com uma ligação para o número. O Asterisk não é recarregado pelo bot: se o Magnus recarregar algo ao liberar um DID, isso precisa ser verificado.
+
 Se a consulta falhar, a resposta mostra `Magnus: consulta falhou` e o erro SQL está no `journalctl`. Tabela nova na consulta exige `GRANT` novo.
 
 ## Uso
@@ -141,7 +195,13 @@ Se a consulta falhar, a resposta mostra `Magnus: consulta falhou` e o erro SQL e
 /numero 551133334444
 ```
 
-Aceita o número com ou sem `55`. Também há uma API local, só em `127.0.0.1`:
+Aceita o número com ou sem `55`. Para liberar e inativar um DID (quem passa pelas travas de canal e cargo):
+
+```
+/inativar 551133334444 linha cancelada a pedido do cliente
+```
+
+Também há uma API local, só em `127.0.0.1`:
 
 ```bash
 curl -H "Authorization: Bearer $API_TOKEN" "http://127.0.0.1:3100/numero/551133334444?wait=0"

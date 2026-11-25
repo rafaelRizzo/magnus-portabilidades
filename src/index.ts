@@ -3,6 +3,7 @@ import { startBot } from "./bot"
 import { createInviteBuffer } from "./buffer"
 import { createCarriers } from "./carriers"
 import { env } from "./env"
+import { createInactivator } from "./inactivate"
 import { createIngest } from "./ingest"
 import { createMagnus } from "./magnus"
 import { buildServer } from "./server"
@@ -49,6 +50,9 @@ await startBot(
         carrierNames: carriers.names,
         sipHost: env.SIP_HOST ?? env.SERVER_IP,
         magnus: env.MAGNUS_DB_URL ? createMagnus(env.MAGNUS_DB_URL) : undefined,
+        inactivator: env.MAGNUS_DB_URL
+            ? createInactivator(env.MAGNUS_DB_URL)
+            : undefined,
     },
     buffer,
 )

@@ -5,7 +5,7 @@ Ferramenta interna que responde, para um número em portabilidade, se a operador
 ## Language
 
 **Número chamado**:
-O número que o chamador discou, reduzido a DDD e últimos 8 dígitos para comparação, ignorando 55, +, 0 inicial e o 9º dígito.
+O número que o chamador discou, reduzido a 55, DDD e últimos 8 dígitos para comparação. Qualquer formato de entrada vale (com ou sem 55, +, 0 inicial e 9º dígito) e a forma comparada sempre tem 55.
 _Avoid_: destino
 
 **INVITE**:
@@ -39,6 +39,18 @@ _Avoid_: carrier, fornecedor
 **DID**:
 Cadastro de um número no Magnus, com dono (cliente) e destinos. Um número pode chegar à plataforma sem DID cadastrado.
 _Avoid_: linha, número cadastrado
+
+**Livre**:
+DID sem dono e não reservado. Todo DID recém-criado já nasce livre e ativo.
+_Avoid_: estoque, disponível
+
+**Liberar**:
+Tirar o dono de um DID, encerrando o uso dele e apagando seus destinos, de modo que ele fique livre.
+_Avoid_: desvincular, soltar
+
+**Inativar**:
+Liberar um DID e desativá-lo. Só vai nesse sentido: a ferramenta nunca ativa nem reserva um DID, e quem reativa é a equipe pelo Magnus.
+_Avoid_: desativar, cancelar, deletar
 
 **Destino**:
 Para onde o Magnus encaminha as ligações de um DID cadastrado.

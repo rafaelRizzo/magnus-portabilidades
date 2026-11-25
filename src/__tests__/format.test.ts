@@ -2,15 +2,19 @@
 import { describe, expect, test } from "bun:test"
 import type { InviteEvent } from "../buffer"
 import {
+    describeAmbiguous,
     describeCredentials,
     describeFooter,
+    describeInactivated,
+    describeInactivationPreview,
     describeInvite,
     describeLogin,
     inviteColor,
 } from "../format"
+import type { Target } from "../inactivate"
 
 const event: InviteEvent = {
-    key: "1133334444",
+    key: "551133334444",
     called: "1133334444",
     from: "11999990001",
     srcIp: "192.0.2.50",
@@ -185,5 +189,69 @@ describe("describeCredentials", () => {
         expect(describeCredentials(did, acc, "192.0.2.10")).toBe(
             "Dados da linha: 551133334444\nUsuário: u1\nSenha: s3cr3t\nHost: 192.0.2.10",
         )
+    })
+})
+
+describe("inativação", () => {
+    const target: Target = {
+        id: 7,
+        did: "551100000001",
+        userId: 42,
+        owner: "demo (Demo *Teste*)",
+        username: "demo",
+        activated: true,
+        reserved: true,
+        destinations: ["Telefone 1100000002", "Conta SIP ramal1"],
+    }
+
+    test("confirmação mostra cliente, estado e destinos que serão perdidos", () => {
+        const text = describeInactivationPreview(target, "linha cancelada")
+        expect(text).toContain("**Cliente:** demo \\(Demo \\*Teste\\*\\)")
+        expect(text).toContain("**Estado:** Ativo, reservado")
+        expect(text).toContain("Telefone 1100000002, Conta SIP ramal1")
+        expect(text).toContain("**Motivo:** linha cancelada")
+        expect(text).toContain("O bot não desfaz")
+    })
+
+    test("DID livre aparece como sem cliente e sem destinos", () => {
+        const text = describeInactivationPreview(
+            {
+                ...target,
+                userId: null,
+                owner: null,
+                reserved: false,
+                destinations: [],
+            },
+            "linha cancelada",
+        )
+        expect(text).toContain("**Cliente:** sem cliente")
+        expect(text).toContain("**Estado:** Ativo, não reservado")
+        expect(text).toContain("**Destinos:** nenhum")
+    })
+
+    test("resultado registra quem fez, quando e o estado anterior", () => {
+        const text = describeInactivated(
+            target,
+            "123456",
+            1_700_000_000_000,
+            "linha cancelada",
+        )
+        expect(text).toContain("**Por:** <@123456>")
+        expect(text).toContain("**Motivo:** linha cancelada")
+        expect(text).toContain("**Cliente antes:**")
+        expect(text).toContain("**Destinos antes:**")
+        expect(text).toContain("<t:1700000000:F>")
+    })
+
+    test("id de usuário com lixo não vira menção forjada", () => {
+        expect(describeInactivated(target, "1<@&9>2", 0, "x")).toContain(
+            "<@192>",
+        )
+    })
+
+    test("ambíguo lista os DIDs e avisa que nada mudou", () => {
+        const text = describeAmbiguous(["5511900000001", "551100000001"])
+        expect(text).toContain("Nada foi alterado")
+        expect(text).toContain("5511900000001, 551100000001")
     })
 })

@@ -1,5 +1,6 @@
 // Monta o texto da resposta do bot: ligação, tronco, cliente e destino no Magnus.
 import type { InviteEvent } from "./buffer"
+import type { Target } from "./inactivate"
 import type { DidInfo, SipAccount } from "./magnus"
 
 // Cores do embed em RGB (o Discord não aceita oklch): oklch(63.7% 0.237 25.331), (70.5% 0.213 47.604), (69.6% 0.17 162.48)
@@ -106,3 +107,52 @@ export const describeCredentials = (
         `Senha: ${account.secret}`,
         `Host: ${host}`,
     ].join("\n")
+
+const describeState = (target: Target) =>
+    `${target.activated ? "Ativo" : "Inativo"}, ${target.reserved ? "reservado" : "não reservado"}`
+
+const describeTarget = (target: Target, suffix = "") => [
+    row(
+        `Cliente${suffix}`,
+        target.owner ? escapeMarkdown(target.owner, 128) : "sem cliente",
+    ),
+    row(`Estado${suffix}`, describeState(target)),
+    row(
+        `Destinos${suffix}`,
+        target.destinations.length
+            ? target.destinations.map((d) => escapeMarkdown(d, 128)).join(", ")
+            : "nenhum",
+    ),
+]
+
+// Pedido de confirmação: mostra o DID exato que será alterado e o que será perdido
+export const describeInactivationPreview = (target: Target, reason: string) =>
+    [
+        ...describeTarget(target),
+        row("Motivo", escapeMarkdown(reason, 200)),
+        "-# Vai apagar os destinos, tirar o cliente, deixar não reservado e inativar. O bot não desfaz.",
+    ].join("\n")
+
+// Vários DIDs casam com o número: nada é alterado e o usuário digita o número exato
+export const describeAmbiguous = (dids: string[]) =>
+    [
+        "Mais de um DID casa com esse número. Nada foi alterado.",
+        row("DIDs", dids.map((d) => escapeMarkdown(d)).join(", ")),
+        "-# Digite o número exatamente como está guardado no Magnus.",
+    ].join("\n")
+
+// Resultado que fica no canal: quem fez, quando e o que existia antes
+export const describeInactivated = (
+    target: Target,
+    userId: string,
+    at: number,
+    reason: string,
+) => {
+    const ts = Math.floor(at / 1000)
+    return [
+        row("Por", `<@${userId.replace(/\D/g, "")}>`),
+        row("Motivo", escapeMarkdown(reason, 200)),
+        ...describeTarget(target, " antes"),
+        `-# <t:${ts}:F> (<t:${ts}:R>)`,
+    ].join("\n")
+}
