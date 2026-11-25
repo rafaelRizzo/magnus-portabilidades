@@ -27,6 +27,7 @@ import {
     inviteColor,
 } from "./format"
 import {
+    cleanReason,
     InactivationError,
     type Inactivator,
     parseDidInput,
@@ -162,6 +163,15 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
                                       min_length: 10,
                                       max_length: 14,
                                   },
+                                  {
+                                      name: "motivo",
+                                      description:
+                                          "Quem pediu e por quê (vai para o histórico do Magnus)",
+                                      type: ApplicationCommandOptionType.String as const,
+                                      required: true,
+                                      min_length: 3,
+                                      max_length: 200,
+                                  },
                               ],
                           },
                       ]
@@ -272,6 +282,17 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
             return
         }
 
+        const reason = cleanReason(
+            interaction.options.getString("motivo", true),
+        )
+        if (!reason) {
+            await interaction.reply({
+                content: "Motivo inválido. Use de 3 a 200 caracteres.",
+                flags: MessageFlags.Ephemeral,
+            })
+            return
+        }
+
         await interaction.deferReply()
         const preview = await config.inactivator.preview(
             input.key,
@@ -306,7 +327,7 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
                     )
                     .addSeparatorComponents(new SeparatorBuilder())
                     .addTextDisplayComponents(
-                        text(describeInactivationPreview(target)),
+                        text(describeInactivationPreview(target, reason)),
                     )
                     .addActionRowComponents(
                         new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -345,7 +366,7 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
         const actor = `${interaction.user.username} (${interaction.user.id})`
         // Só o run() entra no catch: depois do COMMIT uma falha do Discord não pode virar "erro ao inativar"
         const done = await config.inactivator
-            .run(target, actor)
+            .run(target, actor, reason)
             .catch(async (error: unknown) => {
                 if (!(error instanceof InactivationError)) {
                     console.error("Falha ao inativar:", error)
@@ -365,6 +386,7 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
             JSON.stringify({
                 event: "did_inativado",
                 actor,
+                reason,
                 did: done.did,
                 id: done.id,
                 previous: {
@@ -390,6 +412,7 @@ export const startBot = async (config: BotConfig, buffer: InviteBuffer) => {
                                     done,
                                     interaction.user.id,
                                     Date.now(),
+                                    reason,
                                 ),
                             ),
                         ),

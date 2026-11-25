@@ -95,16 +95,17 @@ O `Host` vem de `SIP_HOST` (ou do `SERVER_IP`, se vazio). O botão relê o Magnu
 
 ### Inativar um DID
 
-`/inativar 551133334444` libera e inativa **um** DID, depois de um botão de confirmação (expira em 60 s e só quem pediu consegue clicar). Usa as mesmas travas de servidor, cargo e canal do `/numero` (`DISCORD_GUILD_ID`, `ALLOWED_ROLE_ID`, `ALLOWED_CHANNEL_ID`), sem cargo de admin separado.
+`/inativar 551133334444 linha cancelada a pedido do cliente` libera e inativa **um** DID, depois de um botão de confirmação (expira em 60 s e só quem pediu consegue clicar). Usa as mesmas travas de servidor, cargo e canal do `/numero` (`DISCORD_GUILD_ID`, `ALLOWED_ROLE_ID`, `ALLOWED_CHANNEL_ID`), sem cargo de admin separado.
 
 Numa única transação (qualquer erro desfaz tudo), o bot:
 
-1. grava em `pkg_did_history` quem inativou e o dono anterior, e fecha o uso aberto em `pkg_did_use`, como a tela *Liberar DID* do Magnus;
+1. grava em `pkg_did_history` quem inativou, o motivo e o dono anterior, e fecha o uso aberto em `pkg_did_use`, como a tela *Liberar DID* do Magnus;
 2. apaga os destinos do DID (`pkg_did_destination`);
 3. deixa o DID sem dono, **não reservado** e **inativo**.
 
 Travas:
 
+- O **motivo é obrigatório** (de 3 a 200 caracteres): quem pediu e por quê, no mesmo texto livre que a equipe já escrevia na mão.
 - Só dígitos, de 10 a 14. `%`, `_`, `*`, `+`, espaço e hífen são recusados, nada é limpo.
 - **Um DID por vez.** Se mais de um casar com o número (a chave perde o 9º dígito), nada muda e o bot lista os candidatos: digite o número exatamente como está no Magnus.
 - Age pelo `id` do DID, conferido de novo sob `FOR UPDATE` antes de escrever. Se o dono ou o número mudou entre o pedido e o clique, recusa.
@@ -112,7 +113,7 @@ Travas:
 - Não toca em saldo, tarifa, cliente nem na descrição do DID.
 - DID já inativo, livre, não reservado e sem destinos responde "já inativo" e não escreve nada.
 
-Auditoria: uma linha no `pkg_did_history` (aparece na tela do Magnus), a mensagem no canal com o estado anterior e um log JSON `did_inativado` no `journalctl`.
+Auditoria: uma linha no `pkg_did_history` com "Inativado via Discord por <usuário> (<id>). Motivo: ..." (aparece na tela do Magnus), a mensagem no canal com o motivo e o estado anterior, e um log JSON `did_inativado` no `journalctl`. Num DID que já estava sem dono não há linha de histórico, então o motivo fica só no canal e no log.
 
 ## Requisitos
 
@@ -197,7 +198,7 @@ Se a consulta falhar, a resposta mostra `Magnus: consulta falhou` e o erro SQL e
 Aceita o número com ou sem `55`. Para liberar e inativar um DID (quem passa pelas travas de canal e cargo):
 
 ```
-/inativar 551133334444
+/inativar 551133334444 linha cancelada a pedido do cliente
 ```
 
 Também há uma API local, só em `127.0.0.1`:

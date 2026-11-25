@@ -126,9 +126,10 @@ const describeTarget = (target: Target, suffix = "") => [
 ]
 
 // Pedido de confirmação: mostra o DID exato que será alterado e o que será perdido
-export const describeInactivationPreview = (target: Target) =>
+export const describeInactivationPreview = (target: Target, reason: string) =>
     [
         ...describeTarget(target),
+        row("Motivo", escapeMarkdown(reason, 200)),
         "-# Vai apagar os destinos, tirar o cliente, deixar não reservado e inativar. O bot não desfaz.",
     ].join("\n")
 
@@ -145,10 +146,12 @@ export const describeInactivated = (
     target: Target,
     userId: string,
     at: number,
+    reason: string,
 ) => {
     const ts = Math.floor(at / 1000)
     return [
         row("Por", `<@${userId.replace(/\D/g, "")}>`),
+        row("Motivo", escapeMarkdown(reason, 200)),
         ...describeTarget(target, " antes"),
         `-# <t:${ts}:F> (<t:${ts}:R>)`,
     ].join("\n")

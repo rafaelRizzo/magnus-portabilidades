@@ -71,7 +71,7 @@ describe.skipIf(!url)("inativação no MySQL real", () => {
         if (preview.kind !== "ready") return
         const before = await snapshot()
 
-        await inactivator.run(preview.target, "ator (1)")
+        await inactivator.run(preview.target, "ator (1)", "teste")
         const after = await snapshot()
 
         // DID alvo: liberado, não reservado, inativo; descrição e tarifa intactas
@@ -100,7 +100,7 @@ describe.skipIf(!url)("inativação no MySQL real", () => {
             username: "demo",
             did: "551100000001",
             month_payed: 1,
-            description: "Inativado via Discord por ator (1)",
+            description: "Inativado via Discord por ator (1). Motivo: teste",
         })
         expect(String(history[0]?.reservationdate)).toContain("2026-01-10")
         expect(String(history[0]?.releasedate)).toMatch(/^20\d\d-/)
@@ -139,7 +139,7 @@ describe.skipIf(!url)("inativação no MySQL real", () => {
         const before = await snapshot()
 
         await expect(
-            inactivator.run(preview.target, "ator (1)"),
+            inactivator.run(preview.target, "ator (1)", "teste"),
         ).rejects.toBeInstanceOf(InactivationError)
         expect(await snapshot()).toEqual(before)
     })
@@ -152,7 +152,7 @@ describe.skipIf(!url)("inativação no MySQL real", () => {
         if (preview.kind !== "ready") throw new Error("esperava ready")
         const before = await snapshot()
 
-        await inactivator.run(preview.target, "ator (1)")
+        await inactivator.run(preview.target, "ator (1)", "teste")
         const after = await snapshot()
         expect(
             (after.pkg_did as Record<string, unknown>[]).find(
@@ -187,7 +187,7 @@ describe.skipIf(!url)("inativação no MySQL real", () => {
         const before = await snapshot()
 
         await expect(
-            inactivator.run(preview.target, "ator (1)"),
+            inactivator.run(preview.target, "ator (1)", "teste"),
         ).rejects.toThrow()
         expect(await snapshot()).toEqual(before)
     })

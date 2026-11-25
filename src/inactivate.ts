@@ -50,6 +50,12 @@ export const parseDidInput = (raw: string) => {
     return key ? { digits: raw, key } : null
 }
 
+// Motivo digitado por quem inativa: uma linha só, de 3 a 200 caracteres. Vai ao histórico do Magnus junto de quem executou.
+export const cleanReason = (raw: string) => {
+    const reason = raw.replace(/\s+/g, " ").trim()
+    return reason.length >= 3 && reason.length <= 200 ? reason : null
+}
+
 const toId = (value: unknown) => (value == null ? null : Number(value))
 
 const loadTarget = async (q: Query, row: Row): Promise<Target> => {
@@ -115,7 +121,11 @@ export const buildInactivator = (db: Db) => ({
     },
 
     // Tudo numa transação: qualquer erro desfaz tudo. O alvo é o id confirmado, conferido de novo sob lock.
-    async run(expected: Target, actor: string): Promise<Target> {
+    async run(
+        expected: Target,
+        actor: string,
+        reason: string,
+    ): Promise<Target> {
         const { id } = expected
         if (!Number.isInteger(id) || id <= 0) {
             throw new InactivationError("DID inválido.")
@@ -137,10 +147,11 @@ export const buildInactivator = (db: Db) => ({
 
             // Sem dono não há uso nem histórico a fechar
             if (current.userId !== null) {
-                const description = `Inativado via Discord por ${actor}`.slice(
-                    0,
-                    500,
-                )
+                const description =
+                    `Inativado via Discord por ${actor}. Motivo: ${reason}`.slice(
+                        0,
+                        500,
+                    )
                 await tx`
                     INSERT INTO pkg_did_history (username, did, reservationdate, releasedate, month_payed, description)
                     SELECT ${current.username ?? String(current.userId)}, ${current.did},

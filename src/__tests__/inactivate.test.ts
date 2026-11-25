@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test"
 import {
     buildInactivator,
+    cleanReason,
     type Db,
     InactivationError,
     parseDidInput,
@@ -127,6 +128,23 @@ describe("parseDidInput", () => {
     })
 })
 
+describe("cleanReason", () => {
+    test("aceita de 3 a 200 caracteres e junta em uma linha", () => {
+        expect(cleanReason("  linha   cancelada \n pelo cliente ")).toBe(
+            "linha cancelada pelo cliente",
+        )
+        expect(cleanReason("abc")).toBe("abc")
+        expect(cleanReason("x".repeat(200))).toHaveLength(200)
+    })
+
+    test.each(["", "  ", "ab", " a \n ", "x".repeat(201)])(
+        "recusa %p",
+        (raw) => {
+            expect(cleanReason(raw)).toBeNull()
+        },
+    )
+})
+
 describe("preview", () => {
     test("busca por sufixo com parâmetro, sem nenhuma escrita", async () => {
         const { db, calls } = fakeDb(scenario({ did: [] }))
@@ -239,7 +257,11 @@ describe("preview", () => {
 describe("run", () => {
     test("grava na ordem: histórico, uso, destinos e DID, dentro de uma transação", async () => {
         const { db, calls, log } = fakeDb(scenario())
-        const done = await buildInactivator(db).run(target(), "ator (1)")
+        const done = await buildInactivator(db).run(
+            target(),
+            "ator (1)",
+            "teste",
+        )
 
         expect(done.did).toBe("551100000001")
         expect(log).toEqual(["BEGIN", "COMMIT"])
@@ -256,7 +278,7 @@ describe("run", () => {
 
     test("nunca ativa nem reserva: só 0 e NULL, sempre por id", async () => {
         const { db, calls } = fakeDb(scenario())
-        await buildInactivator(db).run(target(), "ator (1)")
+        await buildInactivator(db).run(target(), "ator (1)", "teste")
 
         for (const { sql } of calls) {
             expect(sql).not.toMatch(/activated\s*=\s*1/)
@@ -272,7 +294,7 @@ describe("run", () => {
 
     test("histórico leva o dono anterior e quem executou, limitado a 500", async () => {
         const { db, calls } = fakeDb(scenario())
-        await buildInactivator(db).run(target(), "x".repeat(900))
+        await buildInactivator(db).run(target(), "x".repeat(900), "teste")
 
         const history = calls.find((c) =>
             c.sql.startsWith("INSERT INTO pkg_did_history"),
@@ -282,6 +304,21 @@ describe("run", () => {
         const description = String(history?.values[2])
         expect(description.startsWith("Inativado via Discord por ")).toBe(true)
         expect(description).toHaveLength(500)
+    })
+
+    test("histórico guarda quem executou e o motivo", async () => {
+        const { db, calls } = fakeDb(scenario())
+        await buildInactivator(db).run(
+            target(),
+            "ator (1)",
+            "pedido do cliente, linha cancelada",
+        )
+        const history = calls.find((c) =>
+            c.sql.startsWith("INSERT INTO pkg_did_history"),
+        )
+        expect(history?.values[2]).toBe(
+            "Inativado via Discord por ator (1). Motivo: pedido do cliente, linha cancelada",
+        )
     })
 
     test("sem dono: não mexe em uso nem histórico", async () => {
@@ -298,6 +335,7 @@ describe("run", () => {
                 reserved: false,
             }),
             "ator (1)",
+            "teste",
         )
         expect(calls.some((c) => c.sql.includes("pkg_did_history"))).toBe(false)
         expect(calls.some((c) => c.sql.includes("pkg_did_use"))).toBe(false)
@@ -309,7 +347,7 @@ describe("run", () => {
             scenario({ locked: [didRow({ did: "551100000999" })] }),
         )
         await expect(
-            buildInactivator(db).run(target(), "ator (1)"),
+            buildInactivator(db).run(target(), "ator (1)", "teste"),
         ).rejects.toBeInstanceOf(InactivationError)
         expect(writes(calls)).toHaveLength(0)
         expect(log).toEqual(["BEGIN", "ROLLBACK"])
@@ -320,7 +358,7 @@ describe("run", () => {
             scenario({ locked: [didRow({ id_user: 99 })] }),
         )
         await expect(
-            buildInactivator(db).run(target(), "ator (1)"),
+            buildInactivator(db).run(target(), "ator (1)", "teste"),
         ).rejects.toBeInstanceOf(InactivationError)
         expect(writes(calls)).toHaveLength(0)
     })
@@ -328,7 +366,7 @@ describe("run", () => {
     test("DID sumiu: desfaz sem escrever", async () => {
         const { db, calls } = fakeDb(scenario({ locked: [] }))
         await expect(
-            buildInactivator(db).run(target(), "ator (1)"),
+            buildInactivator(db).run(target(), "ator (1)", "teste"),
         ).rejects.toBeInstanceOf(InactivationError)
         expect(writes(calls)).toHaveLength(0)
     })
@@ -337,7 +375,7 @@ describe("run", () => {
         for (const affected of [0, 2]) {
             const { db, log } = fakeDb(scenario({ update: affected }))
             await expect(
-                buildInactivator(db).run(target(), "ator (1)"),
+                buildInactivator(db).run(target(), "ator (1)", "teste"),
             ).rejects.toBeInstanceOf(InactivationError)
             expect(log).toEqual(["BEGIN", "ROLLBACK"])
         }
@@ -348,7 +386,7 @@ describe("run", () => {
         async (id) => {
             const { db, calls, log } = fakeDb(scenario())
             await expect(
-                buildInactivator(db).run(target({ id }), "ator (1)"),
+                buildInactivator(db).run(target({ id }), "ator (1)", "teste"),
             ).rejects.toBeInstanceOf(InactivationError)
             expect(calls).toHaveLength(0)
             expect(log).toHaveLength(0)
