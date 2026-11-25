@@ -22,7 +22,7 @@ export type DidInfo = {
 // null = DID não cadastrado no Magnus. Erro de banco propaga e quem chama trata.
 export type MagnusLookup = (key: string) => Promise<DidInfo | null>
 
-type DestinationRow = {
+export type DestinationRow = {
     voip_call: number | null
     destination: string | null
     context: string | null
